@@ -5,6 +5,8 @@
 const struct scrcpy_options scrcpy_options_default = {
     .serial = NULL,
     .crop = NULL,
+    .client_crop = NULL,
+    .client_crop_rect = {0, 0, 0, 0, false},
     .record_filename = NULL,
     .window_title = NULL,
     .push_target = NULL,

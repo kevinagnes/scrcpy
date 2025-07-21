@@ -26,6 +26,7 @@ struct sc_display {
 #endif
 
     bool mipmaps;
+    const struct sc_crop_rect *client_crop;
 
     struct {
 #define SC_DISPLAY_PENDING_FLAG_SIZE 1
@@ -46,7 +47,8 @@ enum sc_display_result {
 
 bool
 sc_display_init(struct sc_display *display, SDL_Window *window,
-                SDL_Surface *icon_novideo, bool mipmaps);
+                SDL_Surface *icon_novideo, bool mipmaps,
+                const struct sc_crop_rect *client_crop); // new param
 
 void
 sc_display_destroy(struct sc_display *display);

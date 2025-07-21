@@ -415,7 +415,7 @@ sc_screen_init(struct sc_screen *screen,
     SDL_Surface *icon_novideo = params->video ? NULL : icon;
     bool mipmaps = params->video && params->mipmaps;
     ok = sc_display_init(&screen->display, screen->window, icon_novideo,
-                         mipmaps);
+                         mipmaps, params->client_crop);
     if (icon) {
         scrcpy_icon_destroy(icon);
     }

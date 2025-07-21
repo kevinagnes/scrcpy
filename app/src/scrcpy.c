@@ -824,6 +824,7 @@ aoa_complete:
             .mipmaps = options->mipmaps,
             .fullscreen = options->fullscreen,
             .start_fps_counter = options->start_fps_counter,
+            .client_crop = &options->client_crop_rect,
         };
 
         if (!sc_screen_init(&s->screen, &screen_params)) {

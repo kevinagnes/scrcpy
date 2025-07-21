@@ -100,6 +100,8 @@ struct sc_screen_params {
 
     bool fullscreen;
     bool start_fps_counter;
+
+    const struct sc_crop_rect *client_crop;
 };
 
 // initialize screen, create window, renderer and texture (window is hidden)

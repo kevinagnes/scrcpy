@@ -30,7 +30,8 @@ sc_display_init_novideo_icon(struct sc_display *display,
 
 bool
 sc_display_init(struct sc_display *display, SDL_Window *window,
-                SDL_Surface *icon_novideo, bool mipmaps) {
+                SDL_Surface *icon_novideo, bool mipmaps,
+                const struct sc_crop_rect *client_crop) {
     display->renderer =
         SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     if (!display->renderer) {
@@ -44,6 +45,7 @@ sc_display_init(struct sc_display *display, SDL_Window *window,
     LOGI("Renderer: %s", renderer_name ? renderer_name : "(unknown)");
 
     display->mipmaps = false;
+    display->client_crop = client_crop;
 
 #ifdef SC_DISPLAY_FORCE_OPENGL_CORE_PROFILE
     display->gl_context = NULL;
@@ -306,8 +308,50 @@ sc_display_render(struct sc_display *display, const SDL_Rect *geometry,
     SDL_Renderer *renderer = display->renderer;
     SDL_Texture *texture = display->texture;
 
+    SDL_Rect srcrect = {0, 0, 0, 0};
+    if (texture) {
+        int tex_w, tex_h;
+        SDL_QueryTexture(texture, NULL, NULL, &tex_w, &tex_h);
+        if (display->client_crop && display->client_crop->set) {
+            srcrect.x = display->client_crop->x;
+            srcrect.y = display->client_crop->y;
+            srcrect.w = display->client_crop->w;
+            srcrect.h = display->client_crop->h;
+        } else {
+            // Default: no crop (full texture)
+            srcrect.x = 0;
+            srcrect.y = 0;
+            srcrect.w = tex_w;
+            srcrect.h = tex_h;
+        }
+    }
+    SDL_Rect cropped_geometry;
+    if (geometry) {
+        if (display->client_crop && display->client_crop->set) {
+            // Map the crop region to the largest area in geometry with the same aspect ratio
+            float crop_aspect = (float)display->client_crop->w / display->client_crop->h;
+            float geom_aspect = (float)geometry->w / geometry->h;
+            cropped_geometry = *geometry;
+            if (crop_aspect > geom_aspect) {
+                // Crop is wider than geometry: pillarbox
+                cropped_geometry.w = geometry->w;
+                cropped_geometry.h = (int)(geometry->w / crop_aspect);
+                cropped_geometry.x = geometry->x;
+                cropped_geometry.y = geometry->y + (geometry->h - cropped_geometry.h) / 2;
+            } else {
+                // Crop is taller than geometry: letterbox
+                cropped_geometry.h = geometry->h;
+                cropped_geometry.w = (int)(geometry->h * crop_aspect);
+                cropped_geometry.y = geometry->y;
+                cropped_geometry.x = geometry->x + (geometry->w - cropped_geometry.w) / 2;
+            }
+        } else {
+            cropped_geometry = *geometry;
+        }
+    }
+    const SDL_Rect *dstrect = geometry ? &cropped_geometry : NULL;
     if (orientation == SC_ORIENTATION_0) {
-        int ret = SDL_RenderCopy(renderer, texture, NULL, geometry);
+        int ret = SDL_RenderCopy(renderer, texture, texture ? &srcrect : NULL, dstrect);
         if (ret) {
             LOGE("Could not render texture: %s", SDL_GetError());
             return SC_DISPLAY_RESULT_ERROR;
@@ -315,23 +359,17 @@ sc_display_render(struct sc_display *display, const SDL_Rect *geometry,
     } else {
         unsigned cw_rotation = sc_orientation_get_rotation(orientation);
         double angle = 90 * cw_rotation;
-
-        const SDL_Rect *dstrect = NULL;
         SDL_Rect rect;
-        if (sc_orientation_is_swap(orientation)) {
-            rect.x = geometry->x + (geometry->w - geometry->h) / 2;
-            rect.y = geometry->y + (geometry->h - geometry->w) / 2;
-            rect.w = geometry->h;
-            rect.h = geometry->w;
+        if (sc_orientation_is_swap(orientation) && dstrect) {
+            rect.x = dstrect->x + (dstrect->w - dstrect->h) / 2;
+            rect.y = dstrect->y + (dstrect->h - dstrect->w) / 2;
+            rect.w = dstrect->h;
+            rect.h = dstrect->w;
             dstrect = &rect;
-        } else {
-            dstrect = geometry;
         }
-
         SDL_RendererFlip flip = sc_orientation_is_mirror(orientation)
                               ? SDL_FLIP_HORIZONTAL : 0;
-
-        int ret = SDL_RenderCopyEx(renderer, texture, NULL, dstrect, angle,
+        int ret = SDL_RenderCopyEx(renderer, texture, texture ? &srcrect : NULL, dstrect, angle,
                                    NULL, flip);
         if (ret) {
             LOGE("Could not render texture: %s", SDL_GetError());

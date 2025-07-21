@@ -114,6 +114,7 @@ enum {
     OPT_NO_VD_SYSTEM_DECORATIONS,
     OPT_NO_VD_DESTROY_CONTENT,
     OPT_DISPLAY_IME_POLICY,
+    OPT_CLIENT_CROP,
 };
 
 struct sc_option {
@@ -1062,6 +1063,12 @@ static const struct sc_option options[] = {
         .argdesc = "value",
         .text = "Set the initial window height.\n"
                 "Default is 0 (automatic).",
+    },
+    {
+        .longopt_id = OPT_CLIENT_CROP,
+        .longopt = "client-crop",
+        .argdesc = "width:height:x:y",
+        .text = "Crop the client display (after receiving the frame). The values are in pixels, in the device natural orientation. Format: width:height:x:y."
     },
 };
 
@@ -2353,6 +2360,19 @@ parse_mouse_bindings(const char *s, struct sc_mouse_bindings *mb) {
     return true;
 }
 
+static bool parse_client_crop(const char *s, struct sc_crop_rect *out) {
+    int w, h, x, y;
+    if (sscanf(s, "%d:%d:%d:%d", &w, &h, &x, &y) == 4 && w > 0 && h > 0) {
+        out->w = w;
+        out->h = h;
+        out->x = x;
+        out->y = y;
+        out->set = true;
+        return true;
+    }
+    return false;
+}
+
 static bool
 parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
                        const char *optstring, const struct option *longopts) {
@@ -2818,6 +2838,13 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
             case OPT_DISPLAY_IME_POLICY:
                 if (!parse_display_ime_policy(optarg,
                                               &opts->display_ime_policy)) {
+                    return false;
+                }
+                break;
+            case OPT_CLIENT_CROP:
+                opts->client_crop = optarg;
+                if (!parse_client_crop(optarg, &opts->client_crop_rect)) {
+                    LOGE("Invalid --client-crop format. Expected width:height:x:y");
                     return false;
                 }
                 break;
