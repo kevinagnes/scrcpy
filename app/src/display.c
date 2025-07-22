@@ -332,7 +332,7 @@ sc_display_render(struct sc_display *display, const SDL_Rect *geometry,
             float crop_aspect = (float)display->client_crop->w / display->client_crop->h;
             float geom_aspect = (float)geometry->w / geometry->h;
             cropped_geometry = *geometry;
-            if (crop_aspect > geom_aspect) {
+            if (crop_aspect < geom_aspect) {
                 // Crop is wider than geometry: pillarbox
                 cropped_geometry.w = geometry->w;
                 cropped_geometry.h = (int)(geometry->w / crop_aspect);
