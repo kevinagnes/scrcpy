@@ -129,17 +129,26 @@ public class ScreenCapture extends SurfaceCapture {
                     .createVirtualDisplay("scrcpy", inputSize.getWidth(), inputSize.getHeight(), displayId, surface);
             Ln.d("Display: using DisplayManager API");
         } catch (Exception displayManagerException) {
-            try {
-                display = createDisplay();
+            if (Build.BRAND.equalsIgnoreCase("oculus") && Build.MODEL.equalsIgnoreCase("Quest 3")) {
+                // Workaround for buggy createVirtualDisplay on Quest 3
+                try {
+                    virtualDisplay = (VirtualDisplay) VirtualDisplay.class.getDeclaredConstructors()[0].newInstance(null, null, null, surface);
+                } catch (ReflectiveOperationException e) {
+                    Ln.e("Could not create VirtualDisplay", e);
+                }
+            } else {
+                try {
+                    display = createDisplay();
 
-                Size deviceSize = displayInfo.getSize();
-                int layerStack = displayInfo.getLayerStack();
-                setDisplaySurface(display, surface, deviceSize.toRect(), inputSize.toRect(), layerStack);
-                Ln.d("Display: using SurfaceControl API");
-            } catch (Exception surfaceControlException) {
-                Ln.e("Could not create display using DisplayManager", displayManagerException);
-                Ln.e("Could not create display using SurfaceControl", surfaceControlException);
-                throw new AssertionError("Could not create display");
+                    Size deviceSize = displayInfo.getSize();
+                    int layerStack = displayInfo.getLayerStack();
+                    setDisplaySurface(display, surface, deviceSize.toRect(), inputSize.toRect(), layerStack);
+                    Ln.d("Display: using SurfaceControl API");
+                } catch (Exception surfaceControlException) {
+                    Ln.e("Could not create display using DisplayManager", displayManagerException);
+                    Ln.e("Could not create display using SurfaceControl", surfaceControlException);
+                    throw new AssertionError("Could not create display");
+                }
             }
         }
 
